@@ -14,6 +14,7 @@ declare -r THREADS="4"                  # Change this if you have a good CPU (Su
 declare -r VIDEO_QUALITY="ultrafast"    # ultrafast, superfast, veryfast, faster, fast, medium, slow, slower, veryslow, placebo
 declare -r BITRATE="1000k"              # Constant bitrate (CBR) Increase this to get a better pixel quality (1000k - 3000k for twitch)
 declare -r AUDIO_RATE="44100"           # Twitch says it MUST have a 44k rate.
+declare -r PA_INPUT="recording_feed_out.monitor" # Hardcoded in pulse)setup script
 
 
 # Discovered information from arguments
@@ -24,6 +25,9 @@ declare webcam_resolution=320:240 # incoming resolution of the webcam
 declare webcam_device             # device location for the webcam
 declare -a pulse_args             # Arguments for pulse audio script.
 declare overlay_image             # The overlay image to use for the stream.
+
+
+# TODO - trapexit calls with pulseaudio cleanups
 
 echoerr() {
   echo 1>&2 "$@"  
@@ -81,14 +85,14 @@ createAvconvFilterString() {
 	if test -z "$overlay_image" ; then
 		# We do not have an overlay
 		if test -z "$webcam_device" ; then
-			echo "movie=$webcam_device:f=video4linux2 input_format=mjpeg, scale=$webcam_resolution , setpts=PTS-STARTPTS [WebCam];
-             [in] setpts=PTS-STARTPTS, [WebCam] overlay=main_w-overlay_w-10:10 [out]"
-		else
 			echo ""
+		else
+      echo "movie=$webcam_device:f=video4linux2, scale=$webcam_resolution , setpts=PTS-STARTPTS [WebCam];
+             [in] setpts=PTS-STARTPTS, [WebCam] overlay=main_w-overlay_w-10:10 [out]"
 		fi
 	else
-		# We have an overlay		
-		if test -z "$webcam_device"; then
+		# We have an overlay
+		if test -z "$webcam_device" ; then
 			echo " movie=$overlay_image [OverlayPng];
                    [in][OverlayPng] overlay=10:10 [out]"
 		else
@@ -109,8 +113,8 @@ streamTo(){
         -s $input_resolution \
         -r "$FPS" \
         -i :0.0+${window_position} \
-        -f alsa \
-        -i pulse \
+        -f pulse \
+        -i $PA_INPUT \
         -f flv -ac 2 -ar $AUDIO_RATE \
         -vcodec libx264 \
         -g $(($FPS*2)) \
@@ -220,7 +224,7 @@ processArgs() {
       -h|-help) usage; exit 1 ;;
       -window) selectWindow && shift ;;
       -twitch-server) require_arg "twitch server" "$1" "$2" && setTwitchServer "$2" && shift 2 ;;
-	  -webcam) require_arg "webcamdevice" "$1" "$2" && setWebcam "$2" && shift 2 ;;
+	    -webcam) require_arg "webcamdevice" "$1" "$2" && setWebcam "$2" && shift 2 ;;
       -overlay) require_arg "image file" "$1" "$2" && setOverlayImage "$2" && shift 2 ;;
       *) addPulseArg "$1" && shift ;;
     esac
@@ -246,6 +250,9 @@ echo "Filter            :  $(createAvconvFilterString)"
 
 # We just make sure we can find it beofre setting up audio.
 ignore_me=$(findTwitchKey)
-
-# TODO - hook up audio correctly after setup
+# setup pulse audio
+bash pulse_setup.bash "${pulse_args[@]}"
+# start streaming
 streamTo "test.mp4"
+
+# TODO - cleanup pulse audio...
