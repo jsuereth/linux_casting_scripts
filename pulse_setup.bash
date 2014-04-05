@@ -7,6 +7,8 @@
 # and all the extras still going to the speakers.
 declare -r SCRIPT_NAME=${0##*/}
 
+declare verbose=false
+
 # Helpers
 
 # Grabs the client id, given a client name we search for.
@@ -67,7 +69,7 @@ checkClientSinkExists() {
 }
 
 echoerr() {
-  echo 1>&2 "$@"  
+  $verbose && echo 1>&2 "$@"  
 }
 
 # Sources, like microphone
@@ -138,6 +140,7 @@ usage() {
   echo "  -skip-setup          Don't create the pulse sinks for recording/playback"
   echo "  -snowball            Add the snowball microphone to the recording."
   echo "  -h                   Display this message"
+  echo "  -v                   Verbose script debugging"
   echo
 
 }
@@ -152,6 +155,7 @@ process_args() {
       -rhythmbox) addMonitoredInput "rhythmbox" && shift ;;
       -snowball) addSource "snowball" && shift ;;
       -skip-setup) pa_setup=false && shift ;;
+      -v) verbose=true && shift ;;
       *) echoerr "Unknown argument: $1"; usage; exit 1 ;;
     esac
   done
@@ -227,10 +231,12 @@ if [[ ${#sources[@]} -lt 1 ]] && [[ ${#inputs[@]} -lt 1 ]] && [[ ${#monitored_in
   exit 1
 fi
 
-
-echo "Recording setup:  "
-echo "  recorded:  $sources $inputs $monitored_inputs"
-echo "  monitored: $monitored_inputs"
+echo
+echo "Audio Inputs "
+echo "========================================="
+echo "recorded     : $sources $inputs $monitored_inputs"
+echo "monitored    : $monitored_inputs"
+echo
 
 if $pa_setup; then
   basicSetup

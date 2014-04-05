@@ -66,6 +66,8 @@ twitch-stream.bash [options]
   -mi <pulse client>          Record any pulse-audio client
                               and also output to hardware speakers
                               Examples:  rhythmbox, wine
+  -output <file>              An (optional) output file instead of twitch
+  -loglevel <level>           avconv loglevel string.
 ```
 
 

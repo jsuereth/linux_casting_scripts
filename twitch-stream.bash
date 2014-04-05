@@ -25,7 +25,8 @@ declare webcam_resolution=320:240 # incoming resolution of the webcam
 declare webcam_device             # device location for the webcam
 declare -a pulse_args             # Arguments for pulse audio script.
 declare overlay_image             # The overlay image to use for the stream.
-
+declare output_file               # Optionally stream to an output file
+declare log_level=info            # The loglevel of avconv
 
 # TODO - trapexit calls with pulseaudio cleanups
 
@@ -130,6 +131,7 @@ streamTo(){
         -threads $THREADS \
         -strict normal \
         -bufsize $BITRATE \
+        -loglevel $log_level \
         "$1"
 	else
       avconv \
@@ -155,14 +157,9 @@ streamTo(){
         -vf "$(createAvconvFilterString)" \
         -strict normal \
         -bufsize $BITRATE \
+        -loglevel $log_level \
         "$1"
     fi
-}
-
-streamWithWebcamToTwitch() {
-	echo "Online! Check on http://twitch.tv/"
-    echo " "
-	streamWithWebcamTo "$(twitchStreamUrl)"
 }
 
 addPulseArg() {
@@ -179,6 +176,10 @@ setWebcam() {
 
 setOverlayImage() {
 	overlay_image="$1"
+}
+
+setOutputFile() {
+  output_file="$1"
 }
 
 require_arg () {
@@ -216,6 +217,8 @@ usage() {
   echo "  -mi <pulse client>          Record any pulse-audio client"
   echo "                              and also output to hardware speakers"
   echo "                              Examples:  rhythmbox, wine"
+  echo "  -output <file>              An (optional) output file instead of twitch"
+  echo "  -loglevel <level>           avconv loglevel string."
 }
 
 processArgs() {
@@ -226,6 +229,8 @@ processArgs() {
       -twitch-server) require_arg "twitch server" "$1" "$2" && setTwitchServer "$2" && shift 2 ;;
 	    -webcam) require_arg "webcamdevice" "$1" "$2" && setWebcam "$2" && shift 2 ;;
       -overlay) require_arg "image file" "$1" "$2" && setOverlayImage "$2" && shift 2 ;;
+      -output) require_arg "movie file" "$1" "$2" && setOutputFile "$2" && shift 2 ;;
+      -loglevel) require_arg "quiet or info" "$1" "$2" && log_level="$2" && shift 2 ;;
       *) addPulseArg "$1" && shift ;;
     esac
   done
@@ -238,7 +243,7 @@ processArgs() {
 
 processArgs "$@"
 
-echo "Inputs "
+echo "Video Inputs "
 echo "========================================="
 echo "Webcam            :  $webcam_device"
 echo "Webcam Resolution :  $webcam_resolution"
@@ -247,12 +252,24 @@ echo "Screen Resolution :  $input_resolution"
 echo "Twitch Server     :  $twitch_server"
 echo "Pulse Args        :  ${pulse_args[@]}"
 echo "Filter            :  $(createAvconvFilterString)"
+echo "Output            :  $output_file"
+echo "Log level         :  $log_level"
 
 # We just make sure we can find it beofre setting up audio.
-ignore_me=$(findTwitchKey)
+if test -z "$output_file"; then
+  ignore_me=$(findTwitchKey)
+fi
+
 # setup pulse audio
+# TODO - better cleanup of pulse setup!
+trap "pulseaudio -k" EXIT SIGTERM SIGINT
 bash pulse_setup.bash "${pulse_args[@]}"
 # start streaming
-streamTo "test.mp4"
-
-# TODO - cleanup pulse audio...
+if test -z "$output_file"; then
+  # We just make sure we can find it beofre setting up audio.
+  ignore_me=$(findTwitchKey)
+  echo "Streaming to twitch"
+  streamTo "$(twitchStreamUrl)"
+else
+  streamTo "$output_file"
+fi
