@@ -78,21 +78,6 @@ declare -a inputs
 declare -a monitored_inputs
 pa_setup=true
 
-
-usage() {
-  echo ""
-  echo "Usage:"
-  echo "$SCRIPT_NAME [-i input] [-mi monitored-input] [-s source] [-h]"
-  echo "    This script constructs the necessaary pulse-audio sinks"
-  echo "    for recording.  There are two sinks created: "
-  echo "     * recording_feed_out - for actually recording."
-  echo "     * comp_feed_out - for recording & playback through speakers."
-  echo ""
-  echo "    Inputs are passed via -i or -mi.  A monitored input is one "
-  echo "    you  wish to hear in the computer speakers."
-  echo "    Input arguments are passed via client name strings."
-}
-
 require_arg () {
   local type="$1"
   local opt="$2"
@@ -130,6 +115,31 @@ addInput() {
 addMonitoredInput() {
   requireClientWithSink "$1"
   monitored_inputs=( "${silent_inputs[@]}" "$1" )
+}
+
+usage() {
+  echo ""
+  echo "Usage:"
+  echo "$SCRIPT_NAME [options]"
+  echo "    This script constructs the necessaary pulse-audio sinks"
+  echo "    for recording.  There are two sinks created: "
+  echo "     * recording_feed_out - for actually recording."
+  echo "     * comp_feed_out - for recording & playback through speakers."
+  echo
+  echo "Options:"
+  echo
+  echo "  -i <client>          Adds a given pulse audio client to the recording."
+  echo "                       You will not be able to hear this input in your speakers."
+  echo "  -mi <client>         Adds some monitored input.  This client will be recorded,"
+  echo "                       and you'll be able to listen to it."
+  echo "  -s  <microphone>     Adds the specified microphone to the recording."
+  echo "                       This will not be heard in your headphones."
+  echo "  -rhythmbox           Adds rhythmbox to the recording + still in speakers."
+  echo "  -skip-setup          Don't create the pulse sinks for recording/playback"
+  echo "  -snowball            Add the snowball microphone to the recording."
+  echo "  -h                   Display this message"
+  echo
+
 }
 
 process_args() {
